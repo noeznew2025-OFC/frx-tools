@@ -8,6 +8,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: unzip -q GrafikMcByFaruq.zip
+      - run: sed -i 's/useAndroidX=false/useAndroidX=true/' GrafikMcByFaruq/gradle.properties
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
