@@ -1,9 +1,12 @@
-name: Build APK
+
+name: Build FRX TOOLS APK
 
 on:
   workflow_dispatch:
   push:
-    branches: [main, master]
+    branches:
+      - main
+      - master
 
 jobs:
   build:
@@ -14,45 +17,65 @@ jobs:
       ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
 
     steps:
-      - name: Checkout
+      - name: Checkout Repository
         uses: actions/checkout@v4
 
       - name: Setup Java
         uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: 17
+          java-version: '17'
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
-          gradle-version: 8.7
+          gradle-version: '8.7'
 
-      - name: Extract ZIP
+      - name: Extract FRX ZIP
         run: |
-          ARCHIVE=$(find . -maxdepth 1 -iname '*.zip' -print -quit)
-          if [ -z "$ARCHIVE" ]; then
-            echo "ZIP project tidak ditemukan"
+          ARCHIVE="GrafikMcByFaruq-FRX-UI-UPDATE.zip"
+
+          if [ ! -f "$ARCHIVE" ]; then
+            echo "ZIP tidak ditemukan: $ARCHIVE"
             exit 1
           fi
-          mkdir project
+
+          mkdir -p project
           unzip -q "$ARCHIVE" -d project
-          PROJECT_DIR=$(dirname "$(find project -name settings.gradle.kts -print -quit)")
-          if [ "$PROJECT_DIR" = "." ]; then
-            echo "Gradle project tidak ditemukan"
+
+          SETTINGS=$(find project -type f \
+            \( -name settings.gradle.kts -o -name settings.gradle \) \
+            -print -quit)
+
+          if [ -z "$SETTINGS" ]; then
+            echo "Gradle project tidak ditemukan!"
             exit 1
           fi
+
+          PROJECT_DIR=$(dirname "$SETTINGS")
           echo "PROJECT_DIR=$PROJECT_DIR" >> "$GITHUB_ENV"
+
+          echo "Project ditemukan: $PROJECT_DIR"
 
       - name: Install Android SDK
         run: |
-          SDKMANAGER=$(find "$ANDROID_HOME/cmdline-tools" -name sdkmanager -type f | head -n 1)
+          SDKMANAGER=$(find "$ANDROID_HOME/cmdline-tools" \
+            -name sdkmanager -type f | head -n 1)
+
+          if [ -z "$SDKMANAGER" ]; then
+            echo "SDK Manager tidak ditemukan"
+            exit 1
+          fi
+
+          yes | "$SDKMANAGER" \
+            --sdk_root="$ANDROID_HOME" --licenses || true
+
           "$SDKMANAGER" --sdk_root="$ANDROID_HOME" \
             "platform-tools" \
             "platforms;android-34" \
             "build-tools;34.0.0"
 
-      - name: Build APK
+      - name: Build FRX APK
         run: |
           cd "$PROJECT_DIR"
           gradle assembleDebug --no-daemon
