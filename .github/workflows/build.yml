@@ -3,9 +3,7 @@ name: Build APK
 on:
   workflow_dispatch:
   push:
-    branches:
-      - main
-      - master
+    branches: [main, master]
 
 jobs:
   build:
@@ -30,11 +28,21 @@ jobs:
         with:
           gradle-version: 8.7
 
-      - name: Check Repository
+      - name: Extract ZIP
         run: |
-          pwd
-          ls -la
-          test -f settings.gradle.kts
+          ARCHIVE=$(find . -maxdepth 1 -iname '*.zip' -print -quit)
+          if [ -z "$ARCHIVE" ]; then
+            echo "ZIP project tidak ditemukan"
+            exit 1
+          fi
+          mkdir project
+          unzip -q "$ARCHIVE" -d project
+          PROJECT_DIR=$(dirname "$(find project -name settings.gradle.kts -print -quit)")
+          if [ "$PROJECT_DIR" = "." ]; then
+            echo "Gradle project tidak ditemukan"
+            exit 1
+          fi
+          echo "PROJECT_DIR=$PROJECT_DIR" >> "$GITHUB_ENV"
 
       - name: Install Android SDK
         run: |
@@ -45,11 +53,13 @@ jobs:
             "build-tools;34.0.0"
 
       - name: Build APK
-        run: gradle assembleDebug --no-daemon
+        run: |
+          cd "$PROJECT_DIR"
+          gradle assembleDebug --no-daemon
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: FRX-TOOLS-APK
-          path: app/build/outputs/apk/debug/app-debug.apk
+          path: project/**/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
